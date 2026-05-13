@@ -240,7 +240,11 @@ Write-Step "Creating kukur command..."
 $binDir = "$env:USERPROFILE\.kukur\bin"
 if (-not (Test-Path $binDir)) { New-Item -ItemType Directory -Path $binDir -Force | Out-Null }
 
-Copy-Item "$KUKUR_DIR\bin\kukur.ps1" "$binDir\kukur.ps1" -Force 2>$null
+$srcCli = "$KUKUR_DIR\bin\kukur.ps1"
+$dstCli = "$binDir\kukur.ps1"
+if ((Test-Path $srcCli) -and ($srcCli -ne $dstCli)) {
+    Copy-Item $srcCli $dstCli -Force
+}
 
 $batchContent = "@echo off`npowershell -ExecutionPolicy Bypass -File `"%USERPROFILE%\.kukur\bin\kukur.ps1`" %*"
 $batchContent | Set-Content "$binDir\kukur.cmd" -Encoding ASCII
