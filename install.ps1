@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # Kukur Gateway - Windows Installer
-# Usage: irm https://raw.githubusercontent.com/onesyah05/kukur-proxy-installer/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/onesyah05/kukur/main/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 $KUKUR_DIR = "$env:USERPROFILE\.kukur"
@@ -104,7 +104,7 @@ if (Test-Path "$KUKUR_DIR\.git") {
 
 Write-Step "Installing dependencies..."
 Push-Location $KUKUR_DIR
-npm install --silent 2>$null
+npm install --prefer-offline --progress=false
 if ($LASTEXITCODE -ne 0) {
     Write-Err "npm install failed"
     Pop-Location
@@ -291,3 +291,4 @@ Write-Host "    (Change this after first login!)" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  NOTE: Restart your terminal for 'kukur' command to work." -ForegroundColor Yellow
 Write-Host ""
+exit 0
