@@ -1,32 +1,29 @@
 #!/usr/bin/env pwsh
 # Kukur Gateway - Windows Installer
-# Usage: irm https://raw.githubusercontent.com/onesyah05/kukur/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/onesyah05/kukur-proxy-installer/main/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 $KUKUR_DIR = "$env:USERPROFILE\.kukur"
 $REPO_URL = "https://github.com/onesyah05/kukur.git"
 
 function Write-Step($msg) { Write-Host "`n[Kukur] " -ForegroundColor Cyan -NoNewline; Write-Host $msg }
-function Write-OK($msg) { Write-Host "  ✓ " -ForegroundColor Green -NoNewline; Write-Host $msg }
-function Write-Err($msg) { Write-Host "  ✗ " -ForegroundColor Red -NoNewline; Write-Host $msg }
-function Write-Info($msg) { Write-Host "  → " -ForegroundColor DarkGray -NoNewline; Write-Host $msg }
+function Write-OK($msg) { Write-Host "  [OK] " -ForegroundColor Green -NoNewline; Write-Host $msg }
+function Write-Err($msg) { Write-Host "  [ERR] " -ForegroundColor Red -NoNewline; Write-Host $msg }
+function Write-Info($msg) { Write-Host "  [..] " -ForegroundColor DarkGray -NoNewline; Write-Host $msg }
 
 Write-Host ""
-Write-Host "  ╔══════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "  ║     Kukur Gateway Installer v1.0     ║" -ForegroundColor Cyan
-Write-Host "  ║     AI Proxy for your local IDE      ║" -ForegroundColor Cyan
-Write-Host "  ╚══════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "  +======================================+" -ForegroundColor Cyan
+Write-Host "  |     Kukur Gateway Installer v1.0     |" -ForegroundColor Cyan
+Write-Host "  |     AI Proxy for your local IDE      |" -ForegroundColor Cyan
+Write-Host "  +======================================+" -ForegroundColor Cyan
 Write-Host ""
 
-# ─── 1. Check Prerequisites ───────────────────────────────────────────
+# --- 1. Check Prerequisites ---
 
 Write-Step "Checking prerequisites..."
 
-# Node.js
 $nodeVersion = $null
-try {
-    $nodeVersion = (node --version 2>$null)
-} catch {}
+try { $nodeVersion = (node --version 2>$null) } catch {}
 
 if (-not $nodeVersion) {
     Write-Err "Node.js not found!"
@@ -43,7 +40,6 @@ if ($nodeMajor -lt 18) {
 }
 Write-OK "Node.js $nodeVersion"
 
-# npm
 $npmVersion = $null
 try { $npmVersion = (npm --version 2>$null) } catch {}
 if (-not $npmVersion) {
@@ -52,7 +48,6 @@ if (-not $npmVersion) {
 }
 Write-OK "npm v$npmVersion"
 
-# Git
 $gitVersion = $null
 try { $gitVersion = (git --version 2>$null) } catch {}
 if (-not $gitVersion) {
@@ -63,7 +58,7 @@ if (-not $gitVersion) {
 }
 Write-OK "$gitVersion"
 
-# ─── 2. Clone or Update Repository ───────────────────────────────────
+# --- 2. Clone or Update Repository ---
 
 Write-Step "Setting up Kukur..."
 
@@ -92,15 +87,15 @@ if (Test-Path "$KUKUR_DIR\.git") {
         Write-Host "    To get access, ask the admin to add your GitHub account" -ForegroundColor Yellow
         Write-Host "    as a collaborator at: $REPO_URL" -ForegroundColor Yellow
         Write-Host ""
-        Write-Host "    Make sure you're authenticated with GitHub:" -ForegroundColor Yellow
-        Write-Host "    → gh auth login  (GitHub CLI)" -ForegroundColor Yellow
-        Write-Host "    → Or add SSH key to your GitHub account" -ForegroundColor Yellow
+        Write-Host "    Make sure you are authenticated with GitHub:" -ForegroundColor Yellow
+        Write-Host "    > gh auth login  (GitHub CLI)" -ForegroundColor Yellow
+        Write-Host "    > Or add SSH key to your GitHub account" -ForegroundColor Yellow
         exit 1
     }
     Write-OK "Repository cloned"
 }
 
-# ─── 3. Install Dependencies ─────────────────────────────────────────
+# --- 3. Install Dependencies ---
 
 Write-Step "Installing dependencies..."
 Push-Location $KUKUR_DIR
@@ -112,7 +107,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-OK "Dependencies installed"
 
-# ─── 3b. Install 9router ─────────────────────────────────────────────
+# --- 3b. Install 9router ---
 
 Write-Step "Checking 9router..."
 
@@ -132,7 +127,7 @@ if (-not $nineRouterVersion) {
     Write-OK "9router $nineRouterVersion"
 }
 
-# ─── 3c. Check & Install Python ──────────────────────────────────────
+# --- 3c. Check and Install Python ---
 
 Write-Step "Checking Python..."
 
@@ -153,7 +148,6 @@ if (-not $pythonCmd) {
     Write-Info "Python not found, installing..."
     winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements 2>$null
     if ($LASTEXITCODE -eq 0) {
-        # Refresh PATH for current session
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
         $pythonCmd = "python"
         Write-OK "Python installed via winget"
@@ -167,7 +161,7 @@ if (-not $pythonCmd) {
     Write-OK "$pyVer"
 }
 
-# ─── 3d. Install Camoufox ────────────────────────────────────────────
+# --- 3d. Install Camoufox ---
 
 Write-Step "Checking Camoufox..."
 
@@ -206,28 +200,25 @@ if (-not $camoufoxFound) {
     }
 }
 
-# ─── 4. Setup Environment ────────────────────────────────────────────
+# --- 4. Setup Environment ---
 
 Write-Step "Configuring environment..."
 
 $envFile = "$KUKUR_DIR\.env"
 if (-not (Test-Path $envFile)) {
-    # Generate random AUTH_SECRET
     $bytes = New-Object byte[] 32
     [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
     $secret = [Convert]::ToBase64String($bytes)
     
-    @"
-# Kukur Gateway Configuration (auto-generated)
-AUTH_SECRET="$secret"
-"@ | Set-Content $envFile -Encoding UTF8
+    $envContent = "# Kukur Gateway Configuration (auto-generated)`nAUTH_SECRET=`"$secret`""
+    $envContent | Set-Content $envFile -Encoding UTF8
 
     Write-OK "Environment configured (.env created)"
 } else {
     Write-OK "Environment already configured"
 }
 
-# ─── 5. Setup Database ───────────────────────────────────────────────
+# --- 5. Setup Database ---
 
 Write-Step "Setting up database..."
 npx prisma generate --quiet 2>$null
@@ -239,27 +230,21 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-OK "Database ready (SQLite)"
 
-# Seed default admin user
 npx tsx prisma/seed.ts 2>$null
 Write-OK "Default admin user created"
 
-# ─── 6. Create CLI Command ───────────────────────────────────────────
+# --- 6. Create CLI Command ---
 
 Write-Step "Creating kukur command..."
 
 $binDir = "$env:USERPROFILE\.kukur\bin"
 if (-not (Test-Path $binDir)) { New-Item -ItemType Directory -Path $binDir -Force | Out-Null }
 
-# Copy the CLI script
 Copy-Item "$KUKUR_DIR\bin\kukur.ps1" "$binDir\kukur.ps1" -Force 2>$null
 
-# Create batch wrapper for cmd.exe compatibility
-@"
-@echo off
-powershell -ExecutionPolicy Bypass -File "%USERPROFILE%\.kukur\bin\kukur.ps1" %*
-"@ | Set-Content "$binDir\kukur.cmd" -Encoding ASCII
+$batchContent = "@echo off`npowershell -ExecutionPolicy Bypass -File `"%USERPROFILE%\.kukur\bin\kukur.ps1`" %*"
+$batchContent | Set-Content "$binDir\kukur.cmd" -Encoding ASCII
 
-# Add to PATH if not already there
 $currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($currentPath -notlike "*$binDir*") {
     [Environment]::SetEnvironmentVariable("Path", "$currentPath;$binDir", "User")
@@ -271,12 +256,12 @@ if ($currentPath -notlike "*$binDir*") {
 
 Pop-Location
 
-# ─── 7. Done! ────────────────────────────────────────────────────────
+# --- 7. Done! ---
 
 Write-Host ""
-Write-Host "  ╔══════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "  ║        Installation Complete!         ║" -ForegroundColor Green
-Write-Host "  ╚══════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "  +======================================+" -ForegroundColor Green
+Write-Host "  |        Installation Complete!         |" -ForegroundColor Green
+Write-Host "  +======================================+" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Quick Start:" -ForegroundColor White
 Write-Host "    kukur start          " -NoNewline -ForegroundColor Cyan; Write-Host "Start the gateway"
@@ -289,6 +274,6 @@ Write-Host "    Email:    admin@unigateway.ai" -ForegroundColor DarkGray
 Write-Host "    Password: password123" -ForegroundColor DarkGray
 Write-Host "    (Change this after first login!)" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  NOTE: Restart your terminal for 'kukur' command to work." -ForegroundColor Yellow
+Write-Host "  NOTE: Restart your terminal for kukur command to work." -ForegroundColor Yellow
 Write-Host ""
 exit 0
