@@ -2,7 +2,7 @@
 # Kukur Gateway - Windows Installer
 # Usage: irm https://raw.githubusercontent.com/onesyah05/kukur-proxy-installer/main/install.ps1 | iex
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $KUKUR_DIR = "$env:USERPROFILE\.kukur"
 $REPO_URL = "https://github.com/onesyah05/kukur.git"
 
@@ -65,7 +65,6 @@ Write-Step "Setting up Kukur..."
 if (Test-Path "$KUKUR_DIR\.git") {
     Write-Info "Existing installation found, updating..."
     Push-Location $KUKUR_DIR
-    $ErrorActionPreference = "Continue"
     $safeDir = $KUKUR_DIR -replace '\\','/'
     git config --global --add safe.directory $safeDir 2>&1 | Out-Null
     git pull --ff-only 2>&1 | Out-Null
@@ -74,7 +73,6 @@ if (Test-Path "$KUKUR_DIR\.git") {
         git fetch origin 2>&1 | Out-Null
         git reset --hard origin/main 2>&1 | Out-Null
     }
-    $ErrorActionPreference = "Stop"
     Pop-Location
     Write-OK "Updated to latest version"
 } else {
@@ -84,11 +82,8 @@ if (Test-Path "$KUKUR_DIR\.git") {
         Remove-Item -Recurse -Force $KUKUR_DIR
     }
 
-    $ErrorActionPreference = "Continue"
     git clone $REPO_URL $KUKUR_DIR 2>&1 | Out-Null
-    $cloneResult = $LASTEXITCODE
-    $ErrorActionPreference = "Stop"
-    if ($cloneResult -ne 0) {
+    if ($LASTEXITCODE -ne 0) {
         Write-Err "Clone failed! You may not have access to this repository."
         Write-Host ""
         Write-Host "    To get access, ask the admin to add your GitHub account" -ForegroundColor Yellow
@@ -228,8 +223,8 @@ if (-not (Test-Path $envFile)) {
 # --- 5. Setup Database ---
 
 Write-Step "Setting up database..."
-npx prisma generate --quiet 2>$null
-npx prisma db push --accept-data-loss --skip-generate 2>$null
+npx prisma generate --quiet 2>&1 | Out-Null
+npx prisma db push --accept-data-loss --skip-generate 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Database setup failed"
     Pop-Location
@@ -237,7 +232,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-OK "Database ready (SQLite)"
 
-npx tsx prisma/seed.ts 2>$null
+npx tsx prisma/seed.ts 2>&1 | Out-Null
 Write-OK "Default admin user created"
 
 # --- 6. Create CLI Command ---
