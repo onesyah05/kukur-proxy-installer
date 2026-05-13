@@ -65,13 +65,16 @@ Write-Step "Setting up Kukur..."
 if (Test-Path "$KUKUR_DIR\.git") {
     Write-Info "Existing installation found, updating..."
     Push-Location $KUKUR_DIR
-    git config --global --add safe.directory $KUKUR_DIR 2>$null
-    git pull --ff-only 2>$null
+    $ErrorActionPreference = "Continue"
+    $safeDir = $KUKUR_DIR -replace '\\','/'
+    git config --global --add safe.directory $safeDir 2>&1 | Out-Null
+    git pull --ff-only 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Write-Info "Pull failed, trying reset..."
-        git fetch origin 2>$null
-        git reset --hard origin/main 2>$null
+        git fetch origin 2>&1 | Out-Null
+        git reset --hard origin/main 2>&1 | Out-Null
     }
+    $ErrorActionPreference = "Stop"
     Pop-Location
     Write-OK "Updated to latest version"
 } else {
@@ -81,8 +84,11 @@ if (Test-Path "$KUKUR_DIR\.git") {
         Remove-Item -Recurse -Force $KUKUR_DIR
     }
 
+    $ErrorActionPreference = "Continue"
     git clone $REPO_URL $KUKUR_DIR 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
+    $cloneResult = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
+    if ($cloneResult -ne 0) {
         Write-Err "Clone failed! You may not have access to this repository."
         Write-Host ""
         Write-Host "    To get access, ask the admin to add your GitHub account" -ForegroundColor Yellow
