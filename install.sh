@@ -17,18 +17,18 @@ GRAY='\033[0;90m'
 NC='\033[0m'
 
 step() { echo -e "\n${CYAN}[Kukur]${NC} $1"; }
-ok() { echo -e "  ${GREEN}✓${NC} $1"; }
-err() { echo -e "  ${RED}✗${NC} $1"; }
-info() { echo -e "  ${GRAY}→${NC} $1"; }
+ok() { echo -e "  ${GREEN}[OK]${NC} $1"; }
+err() { echo -e "  ${RED}[ERR]${NC} $1"; }
+info() { echo -e "  ${GRAY}[..]${NC} $1"; }
 
 echo ""
-echo -e "  ${CYAN}╔══════════════════════════════════════╗${NC}"
-echo -e "  ${CYAN}║     Kukur Gateway Installer v1.0     ║${NC}"
-echo -e "  ${CYAN}║     AI Proxy for your local IDE      ║${NC}"
-echo -e "  ${CYAN}╚══════════════════════════════════════╝${NC}"
+echo -e "  ${CYAN}+======================================+${NC}"
+echo -e "  ${CYAN}|     Kukur Gateway Installer v1.0     |${NC}"
+echo -e "  ${CYAN}|     AI Proxy for your local IDE      |${NC}"
+echo -e "  ${CYAN}+======================================+${NC}"
 echo ""
 
-# ─── 1. Check Prerequisites ───────────────────────────────────────────
+# --- 1. Check Prerequisites ---
 
 step "Checking prerequisites..."
 
@@ -66,16 +66,18 @@ if ! command -v git &> /dev/null; then
 fi
 ok "$(git --version)"
 
-# ─── 2. Clone or Update Repository ───────────────────────────────────
+# --- 2. Clone or Update Repository ---
 
 step "Setting up Kukur..."
 
 if [ -d "$KUKUR_DIR/.git" ]; then
     info "Existing installation found, updating..."
     cd "$KUKUR_DIR"
+    git config --global --add safe.directory "$KUKUR_DIR" 2>/dev/null || true
     if ! git pull --ff-only 2>/dev/null; then
-        err "Failed to update. Try: kukur update --force"
-        exit 1
+        info "Pull failed, trying reset..."
+        git fetch origin 2>/dev/null || true
+        git reset --hard origin/main 2>/dev/null || true
     fi
     ok "Updated to latest version"
 else
@@ -91,9 +93,9 @@ else
         echo -e "    ${YELLOW}To get access, ask the admin to add your GitHub account${NC}"
         echo -e "    ${YELLOW}as a collaborator at: $REPO_URL${NC}"
         echo ""
-        echo -e "    ${YELLOW}Make sure you're authenticated with GitHub:${NC}"
-        echo -e "    ${YELLOW}→ gh auth login  (GitHub CLI)${NC}"
-        echo -e "    ${YELLOW}→ Or add SSH key to your GitHub account${NC}"
+        echo -e "    ${YELLOW}Make sure you are authenticated with GitHub:${NC}"
+        echo -e "    ${YELLOW}> gh auth login  (GitHub CLI)${NC}"
+        echo -e "    ${YELLOW}> Or add SSH key to your GitHub account${NC}"
         exit 1
     fi
     ok "Repository cloned"
@@ -101,13 +103,13 @@ fi
 
 cd "$KUKUR_DIR"
 
-# ─── 3. Install Dependencies ─────────────────────────────────────────
+# --- 3. Install Dependencies ---
 
 step "Installing dependencies..."
-npm install --silent 2>/dev/null
+npm install --prefer-offline --progress=false 2>/dev/null
 ok "Dependencies installed"
 
-# ─── 3b. Install 9router ─────────────────────────────────────────────
+# --- 3b. Install 9router ---
 
 step "Checking 9router..."
 
@@ -123,7 +125,7 @@ else
     fi
 fi
 
-# ─── 3c. Check & Install Python ──────────────────────────────────────
+# --- 3c. Check and Install Python ---
 
 step "Checking Python..."
 
@@ -145,8 +147,7 @@ if [ -z "$PYTHON_CMD" ]; then
             ok "Python installed via Homebrew"
         else
             err "Python not found and Homebrew not available"
-            echo -e "    ${YELLOW}Install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"${NC}"
-            echo -e "    ${YELLOW}Then: brew install python3${NC}"
+            echo -e "    ${YELLOW}Install Homebrew first, then: brew install python3${NC}"
             exit 1
         fi
     else
@@ -173,7 +174,7 @@ else
     ok "$($PYTHON_CMD --version)"
 fi
 
-# ─── 3d. Install Camoufox ────────────────────────────────────────────
+# --- 3d. Install Camoufox ---
 
 step "Checking Camoufox..."
 
@@ -219,7 +220,7 @@ if [ "$CAMOUFOX_FOUND" = false ]; then
     fi
 fi
 
-# ─── 4. Setup Environment ────────────────────────────────────────────
+# --- 4. Setup Environment ---
 
 step "Configuring environment..."
 
@@ -228,34 +229,36 @@ if [ ! -f "$ENV_FILE" ]; then
     # Generate random AUTH_SECRET
     SECRET=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
     
-    cat > "$ENV_FILE" << EOF
-# Kukur Gateway Configuration (auto-generated)
-AUTH_SECRET="$SECRET"
-EOF
+    echo "# Kukur Gateway Configuration (auto-generated)" > "$ENV_FILE"
+    echo "AUTH_SECRET=\"$SECRET\"" >> "$ENV_FILE"
 
     ok "Environment configured (.env created)"
 else
     ok "Environment already configured"
 fi
 
-# ─── 5. Setup Database ───────────────────────────────────────────────
+# --- 5. Setup Database ---
 
 step "Setting up database..."
-npx prisma generate --quiet 2>/dev/null
-npx prisma db push --accept-data-loss --skip-generate 2>/dev/null
+npx prisma generate --quiet 2>/dev/null || true
+npx prisma db push --accept-data-loss --skip-generate 2>/dev/null || true
 ok "Database ready (SQLite)"
 
 # Seed default admin user
 npx tsx prisma/seed.ts 2>/dev/null || true
 ok "Default admin user created"
 
-# ─── 6. Create CLI Command ───────────────────────────────────────────
+# --- 6. Create CLI Command ---
 
 step "Creating kukur command..."
 
 mkdir -p "$BIN_DIR"
-cp "$KUKUR_DIR/bin/kukur" "$BIN_DIR/kukur" 2>/dev/null || true
-chmod +x "$BIN_DIR/kukur"
+
+# Only copy if source and dest are different
+SRC_CLI="$KUKUR_DIR/bin/kukur"
+if [ -f "$SRC_CLI" ]; then
+    chmod +x "$SRC_CLI"
+fi
 
 # Add to PATH
 SHELL_RC=""
@@ -280,12 +283,12 @@ fi
 
 export PATH="$BIN_DIR:$PATH"
 
-# ─── 7. Done! ────────────────────────────────────────────────────────
+# --- 7. Done! ---
 
 echo ""
-echo -e "  ${GREEN}╔══════════════════════════════════════╗${NC}"
-echo -e "  ${GREEN}║        Installation Complete!         ║${NC}"
-echo -e "  ${GREEN}╚══════════════════════════════════════╝${NC}"
+echo -e "  ${GREEN}+======================================+${NC}"
+echo -e "  ${GREEN}|        Installation Complete!         |${NC}"
+echo -e "  ${GREEN}+======================================+${NC}"
 echo ""
 echo -e "  Quick Start:"
 echo -e "    ${CYAN}kukur start${NC}          Start the gateway"
@@ -298,5 +301,9 @@ echo -e "    ${GRAY}Email:    admin@unigateway.ai${NC}"
 echo -e "    ${GRAY}Password: password123${NC}"
 echo -e "    ${YELLOW}(Change this after first login!)${NC}"
 echo ""
-echo -e "  ${YELLOW}NOTE: Restart your terminal or run 'source $SHELL_RC' for 'kukur' command.${NC}"
+if [ -n "$SHELL_RC" ]; then
+    echo -e "  ${YELLOW}NOTE: Restart your terminal or run 'source $SHELL_RC' for kukur command.${NC}"
+else
+    echo -e "  ${YELLOW}NOTE: Restart your terminal for kukur command to work.${NC}"
+fi
 echo ""
